@@ -1,0 +1,46 @@
+A workflow implemented using Luigi pipeline may require the responses for all the taks to be reset at the end of completion of one cycle, before the next cycle runs.
+
+This can be achieved by making the response a class level variable in each of the tasks.
+
+Example:
+
+class GenericTask(luigi.Task):
+    
+    response = None   #this is class level variable
+    PARAMS = luigi.Parameter()
+
+    def run(self):
+        #Some code
+        
+
+    def output(self):
+        return TargetResponse(self.response)
+
+    def on_failure(self, exception):
+       
+        Task1.response = None    #reset class levell variables to None on failure
+        Task2.response = None
+        
+        return "Runtime error:\n%s" % traceback_string
+
+class Task1(GenericTask):
+    def __init__(self, *args, **kwargs):
+        super(Task1, self).__init__(*args, **kwargs)
+        
+ 
+class Task2(GenericTask):
+    def __init__(self, *args, **kwargs):
+        super(Task2, self).__init__(*args, **kwargs)
+    
+    def requires(self):
+        return [ Task1(self.PARAMS) ]
+
+ class WorkflowTargetCleanupTask(luigi.WrapperTask):
+    PARAMS = luigi.Parameter()
+
+    def requires(self):
+        return [ Task2(self.PARAMS) ]
+
+    def on_success(self):
+        Task1.response = None    #reset the response after the pipeline run is completed successfully
+        Task2.response = None  
